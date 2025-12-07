@@ -121,6 +121,8 @@ fn find_framebuffer(card: &Card, verbose: bool) -> Option<Handle> {
 
     None
 }
+use std::sync::atomic::{AtomicU32, AtomicBool, Ordering};
+use std::sync::Arc;
 
 fn main() {
     let matches = App::new("DRM VC4 Screen Grabber for Hyperion")
@@ -189,13 +191,100 @@ fn main() {
         send_color_red(&mut socket, verbose).unwrap();
         thread::sleep(Duration::from_secs(1));
 
+        // Track consecutive errors and 4K state
+        let consecutive_errors = Arc::new(AtomicU32::new(0));
+        let mut in_4k_mode = false;
+        let mut last_4k_check = std::time::Instant::now();
+
         loop {
             if let Some(fb) = find_framebuffer(&card, verbose) {
-                dump_and_send_framebuffer(&mut socket, &card, fb, verbose).unwrap();
-                thread::sleep(Duration::from_millis(1000/20));
+                // Check resolution periodically
+                if !in_4k_mode || last_4k_check.elapsed() > Duration::from_secs(5) {
+                    match ffi::fb_cmd2(card.as_raw_fd(), fb.into()) {
+                        Ok(fbinfo) => {
+                            let is_4k = fbinfo.width >= 3840 || fbinfo.height >= 2160;
+
+                            if is_4k && !in_4k_mode {
+                                eprintln!("4K content detected ({}x{}), pausing capture", fbinfo.width, fbinfo.height);
+                                // Send warmcolor frame to turn off lights
+                                let _ = send_color_warm(&mut socket, verbose);
+                                in_4k_mode = true;
+                            } else if !is_4k && in_4k_mode {
+                                eprintln!("HD content detected ({}x{}), resuming capture", fbinfo.width, fbinfo.height);
+                                in_4k_mode = false;
+                                consecutive_errors.store(0, Ordering::Relaxed);
+                            }
+
+                            last_4k_check = std::time::Instant::now();
+                        }
+                        Err(_) => {}
+                    }
+                }
+
+                // Skip capture if 4K is playing
+                if in_4k_mode {
+                    thread::sleep(Duration::from_secs(1));
+                    continue;
+                }
+
+                // Normal capture for non-4K content
+                match dump_and_send_framebuffer(&mut socket, &card, fb, verbose) {
+                    Ok(_) => {
+                        consecutive_errors.store(0, Ordering::Relaxed);
+                        thread::sleep(Duration::from_millis(33)); // 30 FPS
+                    },
+                    Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {
+                        eprintln!("HyperHDR disconnected. Reconnecting...");
+                        consecutive_errors.store(0, Ordering::Relaxed);
+                        thread::sleep(Duration::from_secs(2));
+
+                        match TcpStream::connect(adress) {
+                            Ok(new_socket) => {
+                                socket = new_socket;
+                                let _ = register_direct(&mut socket);
+                                let _ = read_reply(&mut socket, verbose);
+                                eprintln!("Reconnected to HyperHDR");
+                            }
+                            Err(e) => {
+                                eprintln!("Reconnection failed: {}. Will retry...", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        let errors = consecutive_errors.fetch_add(1, Ordering::Relaxed) + 1;
+
+                        if verbose {
+                            eprintln!("Capture error #{}: {}", errors, e);
+                        }
+
+                        // Back off on errors
+                        let backoff = match errors {
+                            1..=2 => 100,
+                            3..=5 => 500,
+                            _ => 2000,
+                        };
+
+                        thread::sleep(Duration::from_millis(backoff));
+                    }
+                }
             } else {
+                if verbose {
+                    eprintln!("No framebuffer found, waiting...");
+                }
                 thread::sleep(Duration::from_secs(1));
             }
         }
     }
+}
+// Replace the send_color_warm function with this:
+fn send_color_warm(socket: &mut TcpStream, verbose: bool) -> StdResult<()> {
+    // Based on the pattern from send_color_red in the existing code
+    use hyperion::send_image;
+    use image::RgbImage;
+
+    // Create a 1x1 warm yellow/white image
+    let mut img = RgbImage::new(1, 1);
+    img.put_pixel(0, 0, image::Rgb([255, 200, 100]));
+
+    send_image(socket, &img, verbose)
 }

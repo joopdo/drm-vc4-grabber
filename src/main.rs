@@ -28,8 +28,7 @@ pub mod image_decoder;
 pub mod dump_image;
 
 pub use hyperion_request_generated::hyperionnet::{Clear, Color, Command, Image, Register};
-
-use hyperion::{read_reply, register_direct, send_color_red, send_image};
+use hyperion::{read_reply, register_direct, send_color_red, send_image, send_color_warm};
 
 pub struct Card(File);
 
@@ -275,16 +274,4 @@ fn main() {
             }
         }
     }
-}
-// Replace the send_color_warm function with this:
-fn send_color_warm(socket: &mut TcpStream, verbose: bool) -> StdResult<()> {
-    // Based on the pattern from send_color_red in the existing code
-    use hyperion::send_image;
-    use image::RgbImage;
-
-    // Create a 1x1 warm yellow/white image
-    let mut img = RgbImage::new(1, 1);
-    img.put_pixel(0, 0, image::Rgb([255, 200, 100]));
-
-    send_image(socket, &img, verbose)
 }

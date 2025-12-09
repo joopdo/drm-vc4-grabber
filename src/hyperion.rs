@@ -139,3 +139,36 @@ pub fn send_color_red(socket: &mut TcpStream, verbose: bool) -> StdResult<()> {
 
     Ok(())
 }
+pub fn send_color_warm(socket: &mut TcpStream, verbose: bool) -> StdResult<()> {
+    println!("Setting warm color");
+    let mut builder = flatbuffers::FlatBufferBuilder::new();
+
+    // Warm yellowish-white color (RGB: 255, 200, 100)
+    // Format is 0x00RRGGBB
+    let color = request::Color::create(
+        &mut builder,
+        &request::ColorArgs {
+            data: 0x00FFC864 as i32,  // 255, 200, 100 in hex
+            duration: 5000,
+        },
+    );
+
+    let offset = request::Request::create(
+        &mut builder,
+        &request::RequestArgs {
+            command_type: request::Command::Color,
+            command: Some(color.as_union_value()),
+        },
+    );
+
+    request::finish_request_buffer(&mut builder, offset);
+
+    let dat = builder.finished_data();
+    socket.write_u32::<BigEndian>(dat.len() as _)?;
+    socket.write_all(dat)?;
+    socket.flush()?;
+
+    read_reply(socket, verbose)?;
+
+    Ok(())
+}

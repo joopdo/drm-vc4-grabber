@@ -68,9 +68,24 @@ setup_cross_compilation() {
         local linker="/usr/bin/aarch64-linux-gnu-gcc"
         if [ ! -f "$linker" ]; then
             log_warning "Cross-compiler not found at $linker"
-            log_info "Please install it with: sudo apt install gcc-aarch64-linux-gnu"
-            log_info "Or build natively on the Raspberry Pi"
-            exit 1
+            log_info "Cross-compilation setup failed. This is common on some systems."
+            log_info ""
+            log_info "Alternative options:"
+            log_info "1. Use deployment package: ./create_deployment_package.sh"
+            log_info "2. Install cross-compiler: sudo apt install gcc-aarch64-linux-gnu"
+            log_info "3. Build natively on the Raspberry Pi"
+            log_info ""
+            log_info "Creating deployment package instead..."
+            
+            # Automatically create deployment package
+            if [ -f "./create_deployment_package.sh" ]; then
+                ./create_deployment_package.sh
+                log_success "Deployment package created. Copy it to your Pi and build there."
+                exit 0
+            else
+                log_error "Deployment package script not found"
+                exit 1
+            fi
         fi
         
         # Set linker environment variable

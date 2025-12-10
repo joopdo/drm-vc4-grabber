@@ -1,4 +1,43 @@
-/target
+# Build artifacts
+/target/
+*.deb
+*.tar.gz
+*.zip
+
+# Logs and temporary files
+*.log
+error.txt
+logs.txt
+notes.txt
+differences.txt
+screenshot.png
+connection-reliability-test.log
+drm-grabber-diagnostic.log
+
+# IDE and editor files
+.kiro/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Rust/Cargo
 Cargo.lock
-_build
-.#*
+.cargo/
+
+# Temporary scripts (keep only essential ones)
+apply_*.sh
+commit_*.sh
+restore_*.sh
+setup_*.sh
+cleanup_*.sh
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

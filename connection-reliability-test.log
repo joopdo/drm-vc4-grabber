@@ -1,5 +1,0 @@
-[10:51:52] [0;34mINFO: Starting Hyperion connection reliability tests[0m
-[10:51:52] [0;34mINFO: Binary: /home/ANT.AMAZON.COM/joopd/Kiro/drm-vc4-grabber/target/release/drm-vc4-grabber[0m
-[10:51:52] [0;34mINFO: Test 3: Testing new command line options[0m
-[10:51:52] [0;32mSUCCESS: Test 3: --max-retries option available[0m
-[10:51:52] [0;32mSUCCESS: Test 3: --connection-timeout option available[0m

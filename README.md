@@ -1,4 +1,4 @@
-# Hyperion DRM VC4 screen grabber 
+# Hyperion & HyperHDR DRM VC4 screen grabber 
 
 This is an experimental attempt to capture a screenshot from a Raspberry Pi that
  is rendering using the [Direct Rendering

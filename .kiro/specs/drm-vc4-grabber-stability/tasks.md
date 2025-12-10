@@ -26,6 +26,10 @@ Each phase has clear success criteria and must be completed before advancing to 
 ## Phase 1: Core Stability (MANDATORY)
 *Success Criteria: Zero network failures + 24-hour stability test + Reliable LED operation*
 
+**🎉 MAJOR MILESTONE ACHIEVED**: Core DRM stability issue resolved! Kodi now remains stable during video playback with grabber running.
+
+**Current Status**: System is stable but CPU usage is high (~49%). Ready for extended testing and performance optimization.
+
 ### 1. Network Reliability and Connection Management
 
 - [x] 1.1 Fix Hyperion connection reliability issues
@@ -56,13 +60,20 @@ Each phase has clear success criteria and must be completed before advancing to 
   - **RESULT**: ✅ Kodi now remains stable during video playback with grabber running
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 1.3 Add network diagnostics and monitoring
+- [ ] 1.4 Optimize CPU usage (currently ~49% on Pi 5)
+  - Profile capture pipeline to identify CPU bottlenecks
+  - Optimize image processing and memory operations
+  - Implement adaptive frame rate based on system load
+  - Target: Reduce CPU usage to <20% during normal operation
+  - _Requirements: 7.4, 8.5_
+
+- [ ] 1.5 Add network diagnostics and monitoring
   - Monitor Hyperion service availability and response times
   - Log network error patterns and recovery success rates
   - Add network health reporting in diagnostic output
   - _Requirements: 2.1, 2.5_
 
-- [ ]* 1.4 Write property test for network reliability
+- [ ]* 1.6 Write property test for network reliability
   - **Property 6: Network Recovery Consistency**
   - **Validates: Requirements 7.5, 6.5**
 

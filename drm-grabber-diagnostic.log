@@ -1,0 +1,328 @@
+kodi:~/drm-vc4-grabber-v0.1.2-aarch64-linux # cat drm-grabber-diagnostic.log 
+[1765356423097] +0ms [SESSION] === DRM GRABBER DIAGNOSTIC SESSION START ===
+[1765356423097] +0ms [SYSTEM] Hostname: kodi
+[1765356423097] +0ms [SYSTEM] PID: 194413
+[1765356423097] +0ms [SYSTEM] Built with Rust (version info not available)
+[1765356423097] +0ms [INIT] Diagnostic logging initialized
+[1765356423097] +0ms [INIT] Opening DRM device: /dev/dri/card0
+[1765356423098] +0ms [DRM] Driver (auth=true): Driver { name: SmallOsString { data: [118, 51, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 3, as_ref(): "v3d" }, date: SmallOsString { data: [48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 1, as_ref(): "0" }, desc: SmallOsString { data: [66, 114, 111, 97, 100, 99, 111, 109, 32, 86, 51, 68, 32, 103, 114, 97, 112, 104, 105, 99, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 21, as_ref(): "Broadcom V3D graphics" } }
+[1765356423098] +0ms [MONITOR] System monitoring started
+[1765356423098] +0ms [SYSTEM] Load average: 0.10
+[1765356423098] +0ms [SYSTEM] Memory usage: 8% (698/8063 MB)
+[1765356427999] +0ms [SESSION] === DRM GRABBER DIAGNOSTIC SESSION START ===
+[1765356427999] +0ms [SYSTEM] Hostname: kodi
+[1765356427999] +0ms [SYSTEM] PID: 194420
+[1765356427999] +0ms [SYSTEM] Built with Rust (version info not available)
+[1765356427999] +0ms [INIT] Diagnostic logging initialized
+[1765356427999] +0ms [INIT] Opening DRM device: /dev/dri/card0
+[1765356427999] +0ms [DRM] Driver (auth=true): Driver { name: SmallOsString { data: [118, 51, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 3, as_ref(): "v3d" }, date: SmallOsString { data: [48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 1, as_ref(): "0" }, desc: SmallOsString { data: [66, 114, 111, 97, 100, 99, 111, 109, 32, 86, 51, 68, 32, 103, 114, 97, 112, 104, 105, 99, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 21, as_ref(): "Broadcom V3D graphics" } }
+[1765356427999] +0ms [MONITOR] System monitoring started
+[1765356427999] +0ms [SYSTEM] Load average: 0.09
+[1765356427999] +0ms [SYSTEM] Memory usage: 8% (690/8063 MB)
+[1765356459656] +0ms [SESSION] === DRM GRABBER DIAGNOSTIC SESSION START ===
+[1765356459656] +0ms [SYSTEM] Hostname: kodi
+[1765356459656] +0ms [SYSTEM] PID: 194424
+[1765356459656] +0ms [SYSTEM] Built with Rust (version info not available)
+[1765356459656] +0ms [INIT] Diagnostic logging initialized
+[1765356459656] +0ms [INIT] Opening DRM device: /dev/dri/card0
+[1765356459656] +0ms [DRM] Driver (auth=true): Driver { name: SmallOsString { data: [118, 51, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 3, as_ref(): "v3d" }, date: SmallOsString { data: [48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 1, as_ref(): "0" }, desc: SmallOsString { data: [66, 114, 111, 97, 100, 99, 111, 109, 32, 86, 51, 68, 32, 103, 114, 97, 112, 104, 105, 99, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 21, as_ref(): "Broadcom V3D graphics" } }
+[1765356459656] +0ms [MONITOR] System monitoring started
+[1765356459656] +0ms [SYSTEM] Load average: 0.29
+[1765356459656] +0ms [SYSTEM] Memory usage: 8% (694/8063 MB)
+[1765356470926] +0ms [SESSION] === DRM GRABBER DIAGNOSTIC SESSION START ===
+[1765356470926] +0ms [SYSTEM] Hostname: kodi
+[1765356470926] +0ms [SYSTEM] PID: 194431
+[1765356470926] +0ms [SYSTEM] Built with Rust (version info not available)
+[1765356470926] +0ms [INIT] Diagnostic logging initialized
+[1765356470926] +0ms [INIT] Opening DRM device: /dev/dri/card1
+[1765356470926] +0ms [DRM] Driver (auth=true): Driver { name: SmallOsString { data: [118, 99, 52, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 3, as_ref(): "vc4" }, date: SmallOsString { data: [48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 1, as_ref(): "0" }, desc: SmallOsString { data: [66, 114, 111, 97, 100, 99, 111, 109, 32, 86, 67, 52, 32, 103, 114, 97, 112, 104, 105, 99, 115, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], len: 21, as_ref(): "Broadcom VC4 graphics" } }
+[1765356470926] +0ms [MONITOR] System monitoring started
+[1765356470926] +0ms [SYSTEM] Load average: 0.32
+[1765356470926] +0ms [SYSTEM] Memory usage: 8% (690/8063 MB)
+[1765356470931] +5ms [KODI] Running (PIDs: 701, 1004, 188391, 188415, 188489, 194378)
+[1765356470931] +5ms [PROC] kodi (PID 701): RSS 2 MB
+[1765356470931] +5ms [PROC] kodi (PID 701): 14 file descriptors
+[1765356470931] +5ms [PROC] kodi (PID 1004): RSS 18 MB
+[1765356470931] +5ms [PROC] kodi (PID 1004): 4 file descriptors
+[1765356470931] +5ms [PROC] kodi (PID 188391): RSS 1 MB
+[1765356470931] +5ms [PROC] kodi (PID 188391): 4 file descriptors
+[1765356470931] +5ms [PROC] kodi (PID 188415): RSS 486 MB
+[1765356470931] +5ms [PROC] kodi (PID 188415): 88 file descriptors
+[1765356470931] +5ms [PROC] kodi (PID 188489): RSS 1 MB
+[1765356470931] +5ms [PROC] kodi (PID 188489): 5 file descriptors
+[1765356470931] +5ms [PROC] kodi (PID 194378): RSS 22 MB
+[1765356470932] +5ms [PROC] kodi (PID 194378): 32 file descriptors
+[1765356470939] +13ms [DRM] Active clients: 2
+[1765356470939] +13ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356470939] +13ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356470939] +13ms [DRM] GEM objects: 0
+[1765356471947] +1021ms [SYSTEM] Load average: 0.32
+[1765356471947] +1021ms [SYSTEM] Memory usage: 8% (699/8063 MB)
+[1765356471952] +1026ms [KODI] Running (PIDs: 701, 1004, 188391, 188415, 188489, 194378)
+[1765356471952] +1026ms [PROC] kodi (PID 701): RSS 2 MB
+[1765356471952] +1026ms [PROC] kodi (PID 701): 14 file descriptors
+[1765356471952] +1026ms [PROC] kodi (PID 1004): RSS 18 MB
+[1765356471952] +1026ms [PROC] kodi (PID 1004): 4 file descriptors
+[1765356471952] +1026ms [PROC] kodi (PID 188391): RSS 1 MB
+[1765356471952] +1026ms [PROC] kodi (PID 188391): 4 file descriptors
+[1765356471953] +1026ms [PROC] kodi (PID 188415): RSS 486 MB
+[1765356471953] +1027ms [PROC] kodi (PID 188415): 88 file descriptors
+[1765356471953] +1027ms [PROC] kodi (PID 188489): RSS 1 MB
+[1765356471953] +1027ms [PROC] kodi (PID 188489): 5 file descriptors
+[1765356471953] +1027ms [PROC] kodi (PID 194378): RSS 22 MB
+[1765356471953] +1027ms [PROC] kodi (PID 194378): 32 file descriptors
+[1765356471960] +1034ms [DRM] Active clients: 2
+[1765356471960] +1034ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356471960] +1034ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356471960] +1034ms [DRM] GEM objects: 0
+[1765356471970] +1044ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356471979] +1052ms [CAPTURE] Successfully captured 480x270 image
+[1765356472025] +1099ms [HYPERION] Image sent successfully
+[1765356472025] +1099ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356472076] +1149ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356472085] +1159ms [CAPTURE] Successfully captured 480x270 image
+[1765356472132] +1206ms [HYPERION] Image sent successfully
+[1765356472132] +1206ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356472182] +1256ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356472191] +1265ms [CAPTURE] Successfully captured 480x270 image
+[1765356472238] +1312ms [HYPERION] Image sent successfully
+[1765356472238] +1312ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356472288] +1362ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356472297] +1371ms [CAPTURE] Successfully captured 480x270 image
+[1765356472345] +1419ms [HYPERION] Image sent successfully
+[1765356472345] +1419ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356472396] +1470ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356472404] +1478ms [CAPTURE] Successfully captured 480x270 image
+[1765356472452] +1526ms [HYPERION] Image sent successfully
+[1765356472452] +1526ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356472502] +1576ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356472511] +1585ms [CAPTURE] Successfully captured 480x270 image
+[1765356472558] +1632ms [HYPERION] Image sent successfully
+[1765356472558] +1632ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356472609] +1682ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356472617] +1691ms [CAPTURE] Successfully captured 480x270 image
+[1765356472665] +1739ms [HYPERION] Image sent successfully
+[1765356472665] +1739ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356472715] +1789ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356472724] +1798ms [CAPTURE] Successfully captured 480x270 image
+[1765356472772] +1846ms [HYPERION] Image sent successfully
+[1765356472772] +1846ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356472822] +1896ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356472831] +1904ms [CAPTURE] Successfully captured 480x270 image
+[1765356472879] +1953ms [HYPERION] Image sent successfully
+[1765356472879] +1953ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356472930] +2003ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356472939] +2013ms [CAPTURE] Successfully captured 480x270 image
+[1765356472968] +2042ms [SYSTEM] Load average: 0.32
+[1765356472968] +2042ms [SYSTEM] Memory usage: 8% (721/8063 MB)
+[1765356472973] +2047ms [KODI] Running (PIDs: 701, 1004, 188391, 188415, 188489, 194378)
+[1765356472974] +2047ms [PROC] kodi (PID 701): RSS 2 MB
+[1765356472974] +2048ms [PROC] kodi (PID 701): 14 file descriptors
+[1765356472974] +2048ms [PROC] kodi (PID 1004): RSS 18 MB
+[1765356472974] +2048ms [PROC] kodi (PID 1004): 4 file descriptors
+[1765356472974] +2048ms [PROC] kodi (PID 188391): RSS 1 MB
+[1765356472974] +2048ms [PROC] kodi (PID 188391): 4 file descriptors
+[1765356472975] +2048ms [PROC] kodi (PID 188415): RSS 486 MB
+[1765356472975] +2049ms [PROC] kodi (PID 188415): 88 file descriptors
+[1765356472975] +2049ms [PROC] kodi (PID 188489): RSS 1 MB
+[1765356472975] +2049ms [PROC] kodi (PID 188489): 5 file descriptors
+[1765356472975] +2049ms [PROC] kodi (PID 194378): RSS 23 MB
+[1765356472975] +2049ms [PROC] kodi (PID 194378): 32 file descriptors
+[1765356472983] +2057ms [DRM] Active clients: 2
+[1765356472983] +2057ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356472983] +2057ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356472983] +2057ms [DRM] GEM objects: 0
+[1765356472986] +2060ms [HYPERION] Image sent successfully
+[1765356472986] +2060ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356473036] +2110ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356473045] +2119ms [CAPTURE] Successfully captured 480x270 image
+[1765356473092] +2166ms [HYPERION] Image sent successfully
+[1765356473092] +2166ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356473142] +2216ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356473152] +2226ms [CAPTURE] Successfully captured 480x270 image
+[1765356473198] +2272ms [HYPERION] Image sent successfully
+[1765356473198] +2272ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356473249] +2323ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356473257] +2331ms [CAPTURE] Successfully captured 480x270 image
+[1765356473305] +2379ms [HYPERION] Image sent successfully
+[1765356473305] +2379ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356473355] +2429ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356473364] +2438ms [CAPTURE] Successfully captured 480x270 image
+[1765356473412] +2486ms [HYPERION] Image sent successfully
+[1765356473412] +2486ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356473462] +2536ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356473471] +2544ms [CAPTURE] Successfully captured 480x270 image
+[1765356473518] +2592ms [HYPERION] Image sent successfully
+[1765356473518] +2592ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356473569] +2642ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356473577] +2651ms [CAPTURE] Successfully captured 480x270 image
+[1765356473625] +2699ms [HYPERION] Image sent successfully
+[1765356473625] +2699ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356473675] +2749ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356473686] +2760ms [CAPTURE] Successfully captured 480x270 image
+[1765356473735] +2809ms [HYPERION] Image sent successfully
+[1765356473735] +2809ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356473785] +2859ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356473794] +2868ms [CAPTURE] Successfully captured 480x270 image
+[1765356473842] +2916ms [HYPERION] Image sent successfully
+[1765356473842] +2916ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356473892] +2966ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356473901] +2974ms [CAPTURE] Successfully captured 480x270 image
+[1765356473948] +3022ms [HYPERION] Image sent successfully
+[1765356473948] +3022ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356473992] +3066ms [SYSTEM] Load average: 0.30
+[1765356473992] +3066ms [SYSTEM] Memory usage: 9% (735/8063 MB)
+[1765356473997] +3070ms [KODI] Running (PIDs: 701, 1004, 188391, 188415, 188489, 194378)
+[1765356473997] +3071ms [PROC] kodi (PID 701): RSS 2 MB
+[1765356473997] +3071ms [PROC] kodi (PID 701): 14 file descriptors
+[1765356473997] +3071ms [PROC] kodi (PID 1004): RSS 18 MB
+[1765356473997] +3071ms [PROC] kodi (PID 1004): 4 file descriptors
+[1765356473997] +3071ms [PROC] kodi (PID 188391): RSS 1 MB
+[1765356473997] +3071ms [PROC] kodi (PID 188391): 4 file descriptors
+[1765356473997] +3071ms [PROC] kodi (PID 188415): RSS 486 MB
+[1765356473997] +3071ms [PROC] kodi (PID 188415): 88 file descriptors
+[1765356473997] +3071ms [PROC] kodi (PID 188489): RSS 1 MB
+[1765356473997] +3071ms [PROC] kodi (PID 188489): 5 file descriptors
+[1765356473997] +3071ms [PROC] kodi (PID 194378): RSS 23 MB
+[1765356473997] +3071ms [PROC] kodi (PID 194378): 32 file descriptors
+[1765356473999] +3072ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356474006] +3080ms [DRM] Active clients: 2
+[1765356474006] +3080ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356474006] +3080ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356474006] +3080ms [DRM] GEM objects: 0
+[1765356474008] +3082ms [CAPTURE] Successfully captured 480x270 image
+[1765356474055] +3129ms [HYPERION] Image sent successfully
+[1765356474055] +3129ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356474105] +3179ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356474114] +3188ms [CAPTURE] Successfully captured 480x270 image
+[1765356474162] +3236ms [HYPERION] Image sent successfully
+[1765356474162] +3236ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356474212] +3286ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356474221] +3295ms [CAPTURE] Successfully captured 480x270 image
+[1765356474268] +3342ms [HYPERION] Image sent successfully
+[1765356474268] +3342ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356474319] +3393ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356474327] +3401ms [CAPTURE] Successfully captured 480x270 image
+[1765356474375] +3449ms [HYPERION] Image sent successfully
+[1765356474375] +3449ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356474425] +3499ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356474434] +3508ms [CAPTURE] Successfully captured 480x270 image
+[1765356474482] +3556ms [HYPERION] Image sent successfully
+[1765356474482] +3556ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356474532] +3606ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356474541] +3615ms [CAPTURE] Successfully captured 480x270 image
+[1765356474588] +3662ms [HYPERION] Image sent successfully
+[1765356474588] +3662ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356474639] +3712ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356474647] +3721ms [CAPTURE] Successfully captured 480x270 image
+[1765356474695] +3769ms [HYPERION] Image sent successfully
+[1765356474695] +3769ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356474745] +3819ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356474754] +3828ms [CAPTURE] Successfully captured 480x270 image
+[1765356474802] +3876ms [HYPERION] Image sent successfully
+[1765356474802] +3876ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356474852] +3926ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356474861] +3935ms [CAPTURE] Successfully captured 480x270 image
+[1765356474912] +3986ms [HYPERION] Image sent successfully
+[1765356474912] +3986ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356474962] +4036ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356474971] +4044ms [CAPTURE] Successfully captured 480x270 image
+[1765356475015] +4089ms [SYSTEM] Load average: 0.30
+[1765356475015] +4089ms [SYSTEM] Memory usage: 9% (735/8063 MB)
+[1765356475018] +4092ms [HYPERION] Image sent successfully
+[1765356475018] +4092ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356475020] +4094ms [KODI] Running (PIDs: 701, 1004, 188391, 188415, 188489, 194378)
+[1765356475020] +4094ms [PROC] kodi (PID 701): RSS 2 MB
+[1765356475020] +4094ms [PROC] kodi (PID 701): 14 file descriptors
+[1765356475020] +4094ms [PROC] kodi (PID 1004): RSS 18 MB
+[1765356475020] +4094ms [PROC] kodi (PID 1004): 4 file descriptors
+[1765356475020] +4094ms [PROC] kodi (PID 188391): RSS 1 MB
+[1765356475020] +4094ms [PROC] kodi (PID 188391): 4 file descriptors
+[1765356475020] +4094ms [PROC] kodi (PID 188415): RSS 486 MB
+[1765356475021] +4094ms [PROC] kodi (PID 188415): 88 file descriptors
+[1765356475021] +4095ms [PROC] kodi (PID 188489): RSS 1 MB
+[1765356475021] +4095ms [PROC] kodi (PID 188489): 5 file descriptors
+[1765356475021] +4095ms [PROC] kodi (PID 194378): RSS 23 MB
+[1765356475021] +4095ms [PROC] kodi (PID 194378): 32 file descriptors
+[1765356475028] +4102ms [DRM] Active clients: 2
+[1765356475028] +4102ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356475028] +4102ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356475028] +4102ms [DRM] GEM objects: 0
+[1765356475069] +4143ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356475078] +4151ms [CAPTURE] Successfully captured 480x270 image
+[1765356475125] +4199ms [HYPERION] Image sent successfully
+[1765356475125] +4199ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356475175] +4249ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356475184] +4258ms [CAPTURE] Successfully captured 480x270 image
+[1765356475232] +4306ms [HYPERION] Image sent successfully
+[1765356475232] +4306ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356475282] +4356ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356475291] +4365ms [CAPTURE] Successfully captured 480x270 image
+[1765356475338] +4412ms [HYPERION] Image sent successfully
+[1765356475338] +4412ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356475389] +4462ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356475397] +4471ms [CAPTURE] Successfully captured 480x270 image
+[1765356475445] +4519ms [HYPERION] Image sent successfully
+[1765356475445] +4519ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356475495] +4569ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356475504] +4578ms [CAPTURE] Successfully captured 480x270 image
+[1765356475552] +4626ms [HYPERION] Image sent successfully
+[1765356475552] +4626ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356475602] +4676ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356475610] +4684ms [CAPTURE] Successfully captured 480x270 image
+[1765356475658] +4732ms [HYPERION] Image sent successfully
+[1765356475658] +4732ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356475709] +4782ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356475717] +4791ms [CAPTURE] Successfully captured 480x270 image
+[1765356475765] +4839ms [HYPERION] Image sent successfully
+[1765356475765] +4839ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356475815] +4889ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356475824] +4898ms [CAPTURE] Successfully captured 480x270 image
+[1765356475872] +4946ms [HYPERION] Image sent successfully
+[1765356475872] +4946ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356475922] +4996ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356475931] +5005ms [CAPTURE] Successfully captured 480x270 image
+[1765356475979] +5053ms [HYPERION] Image sent successfully
+[1765356475979] +5053ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356476030] +5103ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356476036] +5110ms [SYSTEM] Load average: 0.30
+[1765356476036] +5110ms [SYSTEM] Memory usage: 9% (733/8063 MB)
+[1765356476039] +5112ms [CAPTURE] Successfully captured 480x270 image
+[1765356476041] +5115ms [KODI] Running (PIDs: 701, 1004, 188391, 188415, 188489, 194378)
+[1765356476042] +5115ms [PROC] kodi (PID 701): RSS 2 MB
+[1765356476042] +5116ms [PROC] kodi (PID 701): 14 file descriptors
+[1765356476042] +5116ms [PROC] kodi (PID 1004): RSS 18 MB
+[1765356476042] +5116ms [PROC] kodi (PID 1004): 4 file descriptors
+[1765356476042] +5116ms [PROC] kodi (PID 188391): RSS 1 MB
+[1765356476042] +5116ms [PROC] kodi (PID 188391): 4 file descriptors
+[1765356476042] +5116ms [PROC] kodi (PID 188415): RSS 486 MB
+[1765356476042] +5116ms [PROC] kodi (PID 188415): 88 file descriptors
+[1765356476042] +5116ms [PROC] kodi (PID 188489): RSS 1 MB
+[1765356476042] +5116ms [PROC] kodi (PID 188489): 5 file descriptors
+[1765356476042] +5116ms [PROC] kodi (PID 194378): RSS 24 MB
+[1765356476042] +5116ms [PROC] kodi (PID 194378): 32 file descriptors
+[1765356476050] +5124ms [DRM] Active clients: 2
+[1765356476050] +5124ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356476050] +5124ms [DRM_CLIENT]             kodi.bin 188415 128   n    y     0          0
+[1765356476050] +5124ms [DRM] GEM objects: 0
+[1765356476086] +5159ms [HYPERION] Image sent successfully
+[1765356476086] +5160ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356476136] +5210ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356476145] +5219ms [CAPTURE] Successfully captured 480x270 image
+[1765356476192] +5266ms [HYPERION] Image sent successfully
+[1765356476192] +5266ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356476242] +5316ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356476251] +5324ms [CAPTURE] Successfully captured 480x270 image
+[1765356476299] +5373ms [HYPERION] Image sent successfully
+[1765356476299] +5373ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356476349] +5423ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356476358] +5431ms [CAPTURE] Successfully captured 480x270 image
+[1765356476405] +5479ms [HYPERION] Image sent successfully
+[1765356476405] +5479ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356476456] +5529ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356476464] +5538ms [CAPTURE] Successfully captured 480x270 image
+[1765356476512] +5586ms [HYPERION] Image sent successfully
+[1765356476512] +5586ms [RESOURCE] Prime FDs: 0, GEM handles: 0
+[1765356476562] +5636ms [CAPTURE] Starting framebuffer capture for handle framebuffer::Handle(682)
+[1765356476571] +5645ms [CAPTURE] Successfully captured 480x270 image
+

@@ -26,6 +26,9 @@ pub mod hyperion_reply_generated;
 pub mod hyperion_request_generated;
 pub mod image_decoder;
 pub mod dump_image;
+pub mod diagnostics;
+pub mod system_monitor;
+pub mod connection_manager;
 
 pub use hyperion_request_generated::hyperionnet::{Clear, Color, Command, Image, Register};
 use hyperion::{read_reply, register_direct, send_color_red, send_image, send_color_warm};
@@ -187,7 +190,7 @@ fn main() {
         register_direct(&mut socket).unwrap();
         read_reply(&mut socket, verbose).unwrap();
 
-        send_color_red(&mut socket, verbose).unwrap();
+        send_color_warm(&mut socket, verbose).unwrap();
         thread::sleep(Duration::from_secs(1));
 
         // Track consecutive errors and 4K state

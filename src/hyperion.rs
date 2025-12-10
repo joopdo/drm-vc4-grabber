@@ -143,12 +143,12 @@ pub fn send_color_warm(socket: &mut TcpStream, verbose: bool) -> StdResult<()> {
     println!("Setting warm color");
     let mut builder = flatbuffers::FlatBufferBuilder::new();
 
-    // Warm yellowish-white color (RGB: 255, 200, 100)
+    // Warm dark red color (RGB: 87, 27, 27)
     // Format is 0x00RRGGBB
     let color = request::Color::create(
         &mut builder,
         &request::ColorArgs {
-            data: 0x00FFC864 as i32,  // 255, 200, 100 in hex
+            data: 0x00571B1B as i32,  // 87, 27, 27 in hex
             duration: 5000,
         },
     );

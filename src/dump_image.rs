@@ -1,4 +1,5 @@
 use std::{convert::TryFrom, mem::size_of, os::fd::AsRawFd};
+use std::collections::HashSet;
 
 use drm::control::framebuffer::Handle;
 use drm::SystemError;
@@ -418,7 +419,21 @@ pub fn dump_framebuffer_to_image(
         ),
     };
 
-//    gem_close(card.as_raw_fd(), fbinfo2.handles[0]).unwrap();
+//    // Clean up ALL GEM handles, not just the first one
+    let mut closed_handles = HashSet::new();
+    for i in 0..4 {
+        if fbinfo2.handles[i] != 0 && !closed_handles.contains(&fbinfo2.handles[i]) {
+            if let Err(e) = gem_close(card.as_raw_fd(), fbinfo2.handles[i]) {
+                // Only log if it's not an "already closed" error
+                if !e.to_string().contains("invalid argument") {
+                    eprintln!("Warning: Failed to close GEM handle {}: {}", fbinfo2.handles[i], e);
+                }
+            } else if verbose {
+                println!("Closed GEM handle {}", fbinfo2.handles[i]);
+            }
+            closed_handles.insert(fbinfo2.handles[i]);
+        }
+    }
 
     let image = image_result?;
     gem_close(card.as_raw_fd(), fbinfo2.handles[0]).ok(); // Use .ok() instead of .unwrap()

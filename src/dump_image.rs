@@ -343,100 +343,104 @@ pub fn dump_framebuffer_to_image(
 
     let size = (fbinfo2.width, fbinfo2.height);
 
-    if fbinfo2.pixel_format == 808661072 {
-        return decode_p030_image(
-            card,
-            (size.0 as _, size.1 as _),
-            fbinfo2.pitches[0],
-            fbinfo2.handles[0],
-            fbinfo2.modifier[0],
-            fbinfo2.offsets[1] as _,
-            verbose,
-        );
-    }
-
-    let fourcc = drm_fourcc::DrmFourcc::try_from(fbinfo2.pixel_format).unwrap();
-    let modifier = drm_fourcc::DrmModifier::try_from(fbinfo2.modifier[0]).unwrap();
-
-    let image_result = match fourcc {
-        DrmFourcc::Xrgb8888 => match modifier {
-            DrmModifier::Broadcom_vc4_t_tiled => {
-                dump_broadcom_tiled_to_image(card, size, 32, fbinfo2.handles[0], verbose)
+    // Helper function to clean up all GEM handles
+    let cleanup_handles = || {
+        let mut closed_handles = std::collections::HashSet::new();
+        for i in 0..4 {
+            if fbinfo2.handles[i] != 0 && !closed_handles.contains(&fbinfo2.handles[i]) {
+                if let Err(e) = gem_close(card.as_raw_fd(), fbinfo2.handles[i]) {
+                    // Only log if it's not an "already closed" error
+                    if !e.to_string().contains("invalid argument") {
+                        eprintln!("Warning: Failed to close GEM handle {}: {}", fbinfo2.handles[i], e);
+                    }
+                } else if verbose {
+                    println!("Closed GEM handle {}", fbinfo2.handles[i]);
+                }
+                closed_handles.insert(fbinfo2.handles[i]);
             }
-            DrmModifier::Linear => dump_linear_to_image(
-                card,
-                fbinfo2.pitches[0],
-                size,
-                32,
-                fbinfo2.handles[0],
-                verbose,
-            ),
-            _ => panic!("Unsupported framebuffer modifier: {:?}", modifier),
-        },
-        DrmFourcc::Argb8888 => match modifier {
-            DrmModifier::Broadcom_vc4_t_tiled => {
-                dump_broadcom_tiled_to_image(card, size, 32, fbinfo2.handles[0], verbose)
-            }
-            DrmModifier::Linear => dump_linear_to_image(
-                card,
-                fbinfo2.pitches[0],
-                size,
-                32,
-                fbinfo2.handles[0],
-                verbose,
-            ),
-            _ => panic!("Unsupported framebuffer modifier: {:?}", modifier),
-        },
-        DrmFourcc::Yuv420 => dump_yuv420_to_image(
-            card,
-            size,
-            fbinfo2.pitches,
-            fbinfo2.handles,
-            fbinfo2.offsets,
-            verbose,
-        ),
-        DrmFourcc::Rgb565 => dump_rgb565_to_image(
-            card,
-            fbinfo2.pitches[0],
-            size,
-            16,
-            fbinfo2.handles[0],
-            verbose,
-        ),
-        DrmFourcc::Nv12 => decode_nv12_image(
-            card,
-            (size.0 as _, size.1 as _),
-            fbinfo2.pitches[0],
-            fbinfo2.handles[0],
-            fbinfo2.modifier[0],
-            fbinfo2.offsets[1] as _,
-            verbose,
-        ),
-
-        _ => panic!(
-            "Unsupported framebuffer pixel format: {} {:x}",
-            fourcc, fbinfo2.pixel_format
-        ),
+        }
     };
 
-//    // Clean up ALL GEM handles, not just the first one
-    let mut closed_handles = HashSet::new();
-    for i in 0..4 {
-        if fbinfo2.handles[i] != 0 && !closed_handles.contains(&fbinfo2.handles[i]) {
-            if let Err(e) = gem_close(card.as_raw_fd(), fbinfo2.handles[i]) {
-                // Only log if it's not an "already closed" error
-                if !e.to_string().contains("invalid argument") {
-                    eprintln!("Warning: Failed to close GEM handle {}: {}", fbinfo2.handles[i], e);
-                }
-            } else if verbose {
-                println!("Closed GEM handle {}", fbinfo2.handles[i]);
-            }
-            closed_handles.insert(fbinfo2.handles[i]);
-        }
-    }
+    // Process the image with proper cleanup on both success and failure
+    let image_result = if fbinfo2.pixel_format == 808661072 {
+        decode_p030_image(
+            card,
+            (size.0 as _, size.1 as _),
+            fbinfo2.pitches[0],
+            fbinfo2.handles[0],
+            fbinfo2.modifier[0],
+            fbinfo2.offsets[1] as _,
+            verbose,
+        )
+    } else {
+        let fourcc = drm_fourcc::DrmFourcc::try_from(fbinfo2.pixel_format).unwrap();
+        let modifier = drm_fourcc::DrmModifier::try_from(fbinfo2.modifier[0]).unwrap();
 
-    let image = image_result?;
-    gem_close(card.as_raw_fd(), fbinfo2.handles[0]).ok(); // Use .ok() instead of .unwrap()
-    std::thread::sleep(std::time::Duration::from_millis(10));
-    Ok(image)
+        match fourcc {
+            DrmFourcc::Xrgb8888 => match modifier {
+                DrmModifier::Broadcom_vc4_t_tiled => {
+                    dump_broadcom_tiled_to_image(card, size, 32, fbinfo2.handles[0], verbose)
+                }
+                DrmModifier::Linear => dump_linear_to_image(
+                    card,
+                    fbinfo2.pitches[0],
+                    size,
+                    32,
+                    fbinfo2.handles[0],
+                    verbose,
+                ),
+                _ => panic!("Unsupported framebuffer modifier: {:?}", modifier),
+            },
+            DrmFourcc::Argb8888 => match modifier {
+                DrmModifier::Broadcom_vc4_t_tiled => {
+                    dump_broadcom_tiled_to_image(card, size, 32, fbinfo2.handles[0], verbose)
+                }
+                DrmModifier::Linear => dump_linear_to_image(
+                    card,
+                    fbinfo2.pitches[0],
+                    size,
+                    32,
+                    fbinfo2.handles[0],
+                    verbose,
+                ),
+                _ => panic!("Unsupported framebuffer modifier: {:?}", modifier),
+            },
+            DrmFourcc::Yuv420 => dump_yuv420_to_image(
+                card,
+                size,
+                fbinfo2.pitches,
+                fbinfo2.handles,
+                fbinfo2.offsets,
+                verbose,
+            ),
+            DrmFourcc::Rgb565 => dump_rgb565_to_image(
+                card,
+                fbinfo2.pitches[0],
+                size,
+                16,
+                fbinfo2.handles[0],
+                verbose,
+            ),
+            DrmFourcc::Nv12 => decode_nv12_image(
+                card,
+                (size.0 as _, size.1 as _),
+                fbinfo2.pitches[0],
+                fbinfo2.handles[0],
+                fbinfo2.modifier[0],
+                fbinfo2.offsets[1] as _,
+                verbose,
+            ),
+
+            _ => panic!(
+                "Unsupported framebuffer pixel format: {} {:x}",
+                fourcc, fbinfo2.pixel_format
+            ),
+        }
+    };
+
+    // Always clean up handles, regardless of success or failure
+    cleanup_handles();
+
+    // Return the result (propagate any errors after cleanup)
+    image_result
 }

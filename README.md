@@ -17,6 +17,10 @@ is also some other interlacing or similar I have not quite figured out yet.
 The current implementation connects to Hyperion at `127.0.0.1:19400` and
 directly uploads the images.
 
+## Compatibility
+
+This grabber is compatible with both **Hyperion** and **HyperHDR** since they share the same TCP protocol and default port (19400). The grabber uses Hyperion's native TCP socket protocol for direct image streaming, making it compatible with any server implementing the same API endpoint.
+
 ## Usage
 
 1. Download the latest release archive.

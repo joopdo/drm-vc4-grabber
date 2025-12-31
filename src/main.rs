@@ -22,7 +22,9 @@ use std::io::Result as StdResult;
 pub mod ffi;
 pub mod framebuffer;
 pub mod hyperion;
+#[allow(mismatched_lifetime_syntaxes)]
 pub mod hyperion_reply_generated;
+#[allow(mismatched_lifetime_syntaxes)]
 pub mod hyperion_request_generated;
 pub mod image_decoder;
 pub mod dump_image;
@@ -31,7 +33,7 @@ pub mod system_monitor;
 pub mod connection_manager;
 
 pub use hyperion_request_generated::hyperionnet::{Clear, Color, Command, Image, Register};
-use hyperion::{read_reply, register_direct, send_color_red, send_image, send_color_warm};
+use hyperion::{read_reply, register_direct, send_image};
 
 pub struct Card(File);
 
@@ -63,7 +65,7 @@ fn save_screenshot(img: &RgbImage) -> Result<(), ImageError> {
     img.save("screenshot.png")
 }
 
-fn send_dumped_image(socket: &mut TcpStream, img: &RgbImage, verbose : bool) -> StdResult<()> {
+fn send_dumped_image(socket: &mut TcpStream, img: &RgbImage, verbose: bool) -> StdResult<()> {
     register_direct(socket)?;
     read_reply(socket, verbose)?;
 
@@ -81,8 +83,8 @@ fn dump_and_send_framebuffer(
     let img = dump_framebuffer_to_image(card, fb, verbose);
     if let Ok(img) = img {
         send_dumped_image(socket, &img, verbose)?;
-    } else {
-        println!("Error dumping framebuffer to image.");
+    } else if verbose {
+        eprintln!("Error dumping framebuffer to image.");
     }
 
     Ok(())
@@ -123,19 +125,20 @@ fn find_framebuffer(card: &Card, verbose: bool) -> Option<Handle> {
 
     None
 }
-use std::sync::atomic::{AtomicU32, AtomicBool, Ordering};
+
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
 fn main() {
     let matches = App::new("DRM VC4 Screen Grabber for Hyperion")
-        .version("0.1.0")
+        .version("0.1.2")
         .author("Rudi Horn <dyn-git@rudi-horn.de>")
-        .about("Captures a screenshot and sends it to the Hyperion server.")
+        .about("Captures a screenshot and sends it to the Hyperion or HyperHDR server.")
         .arg(
             Arg::with_name("device")
                 .short("d")
                 .long("device")
-                .default_value("/dev/dri/card0")
+                .default_value("/dev/dri/card1")
                 .takes_value(true)
                 .help("The device path of the DRM device to capture the image from."),
         )
@@ -173,11 +176,15 @@ fn main() {
     }
 
     unsafe {
-        let set_cap = drm_set_client_cap{ capability: drm_ffi::DRM_CLIENT_CAP_UNIVERSAL_PLANES as u64, value: 1 };
+        let set_cap = drm_set_client_cap {
+            capability: drm_ffi::DRM_CLIENT_CAP_UNIVERSAL_PLANES as u64,
+            value: 1,
+        };
         drm_ffi::ioctl::set_cap(card.as_raw_fd(), &set_cap).unwrap();
     }
 
-    let adress = matches.value_of("address").unwrap();
+    let address = matches.value_of("address").unwrap();
+    
     if screenshot {
         if let Some(fb) = find_framebuffer(&card, verbose) {
             let img = dump_framebuffer_to_image(&card, fb, verbose).unwrap();
@@ -186,61 +193,33 @@ fn main() {
             println!("No framebuffer found!");
         }
     } else {
-        let mut socket = TcpStream::connect(adress).unwrap();
+        let mut socket = TcpStream::connect(address).unwrap();
         register_direct(&mut socket).unwrap();
         read_reply(&mut socket, verbose).unwrap();
 
-        send_color_warm(&mut socket, verbose).unwrap();
-        thread::sleep(Duration::from_secs(1));
+        if verbose {
+            println!("Connected to Hyperion, starting capture loop");
+        }
 
-        // Track consecutive errors and 4K state
+        // Track consecutive errors for connection reliability
         let consecutive_errors = Arc::new(AtomicU32::new(0));
-        let mut in_4k_mode = false;
-        let mut last_4k_check = std::time::Instant::now();
+        // Track consecutive "no framebuffer" occurrences
+        let mut no_fb_count: u32 = 0;
 
         loop {
             if let Some(fb) = find_framebuffer(&card, verbose) {
-                // Check resolution periodically
-                if !in_4k_mode || last_4k_check.elapsed() > Duration::from_secs(5) {
-                    match ffi::fb_cmd2(card.as_raw_fd(), fb.into()) {
-                        Ok(fbinfo) => {
-                            let is_4k = fbinfo.width >= 3840 || fbinfo.height >= 2160;
-
-                            if is_4k && !in_4k_mode {
-                                eprintln!("4K content detected ({}x{}), pausing capture", fbinfo.width, fbinfo.height);
-                                // Send warmcolor frame to turn off lights
-                                let _ = send_color_warm(&mut socket, verbose);
-                                in_4k_mode = true;
-                            } else if !is_4k && in_4k_mode {
-                                eprintln!("HD content detected ({}x{}), resuming capture", fbinfo.width, fbinfo.height);
-                                in_4k_mode = false;
-                                consecutive_errors.store(0, Ordering::Relaxed);
-                            }
-
-                            last_4k_check = std::time::Instant::now();
-                        }
-                        Err(_) => {}
-                    }
-                }
-
-                // Skip capture if 4K is playing
-                if in_4k_mode {
-                    thread::sleep(Duration::from_secs(1));
-                    continue;
-                }
-
-                // Normal capture for non-4K content
+                no_fb_count = 0; // Reset counter on successful find
                 match dump_and_send_framebuffer(&mut socket, &card, fb, verbose) {
                     Ok(_) => {
                         consecutive_errors.store(0, Ordering::Relaxed);
-                        thread::sleep(Duration::from_millis(33)); // 30 FPS
-                    },
+                        thread::sleep(Duration::from_millis(33)); // ~30 FPS
+                    }
                     Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {
                         eprintln!("HyperHDR disconnected. Reconnecting...");
                         consecutive_errors.store(0, Ordering::Relaxed);
                         thread::sleep(Duration::from_secs(2));
 
-                        match TcpStream::connect(adress) {
+                        match TcpStream::connect(address) {
                             Ok(new_socket) => {
                                 socket = new_socket;
                                 let _ = register_direct(&mut socket);
@@ -270,9 +249,14 @@ fn main() {
                     }
                 }
             } else {
+                no_fb_count += 1;
+
                 if verbose {
-                    eprintln!("No framebuffer found, waiting...");
+                    eprintln!("No framebuffer found (count: {}), waiting...", no_fb_count);
                 }
+
+                // Don't send any color - just wait silently
+                // The LEDs will maintain their last state or timeout naturally
                 thread::sleep(Duration::from_secs(1));
             }
         }

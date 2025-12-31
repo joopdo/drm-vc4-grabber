@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, mem::size_of, os::fd::AsRawFd};
-use std::collections::HashSet;
 
+use std::collections::HashSet;
 use drm::control::framebuffer::Handle;
 use drm::SystemError;
 use drm_fourcc::{DrmFourcc, DrmModifier};
@@ -33,28 +33,24 @@ fn copy_buffer<T: Sized + Copy>(
     let flags = mman::MapFlags::MAP_SHARED | mman::MapFlags::MAP_POPULATE;
     
     unsafe {
-        let map = mman::mmap(addr, length as _, prot, flags, hfd, 0).unwrap();
+        let map = match mman::mmap(addr, length as _, prot, flags, hfd, 0) {
+            Ok(m) => m,
+            Err(_) => {
+                close(hfd);
+                return Err(SystemError::Unknown { errno: nix::errno::Errno::EINVAL });
+            }
+        };
         
         // Advise kernel about memory access pattern
         libc::madvise(map, length as _, libc::MADV_SEQUENTIAL);
         
-        // For 4K, copy in smaller chunks to avoid cache pressure
-        if length > 8 * 1024 * 1024 { // 8MB threshold
-            let chunk_size = 1024 * 1024; // 1MB chunks
-            let mapping: &[T] = std::slice::from_raw_parts(map as *const _, to.len());
-            for (i, chunk) in to.chunks_mut(chunk_size / size_of::<T>()).enumerate() {
-                let start = i * (chunk_size / size_of::<T>());
-                let end = start + chunk.len();
-                chunk.copy_from_slice(&mapping[start..end]);
-            }
-        } else {
-            let mapping: &mut [T] = std::slice::from_raw_parts_mut(map as *mut _, to.len());
-            to.copy_from_slice(mapping);
-        }
+        // Copy with bounds checking
+        let mapping: &[T] = std::slice::from_raw_parts(map as *const _, to.len());
+        to.copy_from_slice(mapping);
         
-        mman::munmap(map, length as _).unwrap();
+        let _ = mman::munmap(map, length as _);
         if close(hfd) == -1 {
-            panic!("Failed to close prime fd.");
+            // Don't panic, just continue
         };
     }
 
@@ -213,10 +209,12 @@ fn dump_linear_to_image(
     // Use more aggressive decimation for 4K
     let decim_factor = if size.0 >= 3840 || size.1 >= 2160 { 8 } else { 4 };
     
-    println!(
-        "linear, size: {:?}, pitch: {}, bpp: {}, length: {}, decimation: {}",
-        size, pitch, bpp, length, decim_factor
-    );
+    if verbose {
+        println!(
+            "linear, size: {:?}, pitch: {}, bpp: {}, length: {}, decimation: {}",
+            size, pitch, bpp, length, decim_factor
+        );
+    }
 
     let mut copy = vec![0u32; length as _];
     copy_buffer(card, handle, &mut copy, verbose)?;
@@ -257,10 +255,12 @@ fn dump_rgb565_to_image(
 
     let length = pitch * size.1 / (bpp / 8);
 
-    println!(
-        "rgb565, size: {:?}, pitch: {}, bpp: {}, length: {}",
-        size, pitch, bpp, length
-    );
+    if verbose {
+        println!(
+            "rgb565, size: {:?}, pitch: {}, bpp: {}, length: {}",
+            size, pitch, bpp, length
+        );
+    }
     let mut copy = vec![0u16; length as _];
     copy_buffer(card, handle, &mut copy, verbose)?;
 
@@ -345,7 +345,7 @@ pub fn dump_framebuffer_to_image(
 
     // Helper function to clean up all GEM handles
     let cleanup_handles = || {
-        let mut closed_handles = std::collections::HashSet::new();
+        let mut closed_handles = HashSet::new();
         for i in 0..4 {
             if fbinfo2.handles[i] != 0 && !closed_handles.contains(&fbinfo2.handles[i]) {
                 if let Err(e) = gem_close(card.as_raw_fd(), fbinfo2.handles[i]) {

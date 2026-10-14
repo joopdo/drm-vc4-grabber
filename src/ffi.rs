@@ -30,7 +30,8 @@ ioctl_readwrite!(drm_prime_handle_to_fd, DRM_IOCTL_BASE, 0x2D, drm_prime_handle)
 pub fn prime_handle_to_fd(fd: RawFd, handle: u32) -> Result<RawFd, SystemError> {
     let mut ph = drm_prime_handle {
         handle,
-        flags: 0,
+        // Never let the dma-buf fd leak into a child process.
+        flags: libc::O_CLOEXEC as u32,
         fd: 0,
     };
 
@@ -54,4 +55,34 @@ pub fn gem_close(fd: RawFd, handle: u32) -> Result<(), SystemError> {
     }
 
     Ok(())
+}
+
+// --- dma-buf CPU access synchronisation (linux/dma-buf.h) ---------------------
+// Every CPU read of an mmap'd dma-buf must be bracketed by SYNC_START|READ and
+// SYNC_END|READ (Documentation/driver-api/dma-buf.rst, "CPU access").
+#[repr(C)]
+pub struct dma_buf_sync {
+    pub flags: u64,
+}
+pub const DMA_BUF_SYNC_READ: u64 = 1 << 0;
+pub const DMA_BUF_SYNC_START: u64 = 0 << 2;
+pub const DMA_BUF_SYNC_END: u64 = 1 << 2;
+
+ioctl_write_ptr!(dma_buf_ioctl_sync, b'b', 0, dma_buf_sync);
+
+/// Issue DMA_BUF_IOCTL_SYNC, retrying EINTR/EAGAIN a few times as the uapi
+/// documentation asks. Returns the errno on persistent failure.
+pub fn dmabuf_sync(fd: RawFd, flags: u64) -> Result<(), nix::errno::Errno> {
+    let s = dma_buf_sync { flags };
+    let mut tries = 0;
+    loop {
+        match unsafe { dma_buf_ioctl_sync(fd, &s) } {
+            Ok(_) => return Ok(()),
+            Err(nix::Error::Sys(e)) if (e == nix::errno::Errno::EINTR || e == nix::errno::Errno::EAGAIN) && tries < 3 => {
+                tries += 1;
+            }
+            Err(nix::Error::Sys(e)) => return Err(e),
+            Err(_) => return Err(nix::errno::Errno::EIO),
+        }
+    }
 }

@@ -158,100 +158,235 @@ impl ProfileAggregator {
 /// every frame (those ioctls get expensive during active video playback
 /// because they contend with Kodi's continuous framebuffer updates).
 ///
-/// The CRTC and plane handle lists only change on monitor hotplug, so we
-/// read them once at startup. We also remember which plane last had a live
-/// framebuffer so subsequent frames can short-circuit to that plane with
-/// a single ioctl.
-struct FramebufferFinder {
-    crtcs: Vec<drm::control::crtc::Handle>,
-    planes: Vec<drm::control::plane::Handle>,
-    last_good_plane: Option<drm::control::plane::Handle>,
-    /// Counts consecutive failures of the cached plane; after a few we drop
-    /// the cache and fall back to a full scan (handles resolution changes
-    /// and other reconfigurations).
-    cache_misses: u32,
+/// The plane list only changes on hotplug, so it is read once. The plane that
+/// carries the picture (the video plane during playback, else the GUI plane)
+/// is identified by a scan every RESCAN; in between, one GETPLANE per poll.
+/// Where the sampled plane's picture really is on screen, read from the plane's
+/// atomic properties at each RESCAN (never per frame).
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Geometry {
+    screen: (u32, u32),          // CRTC mode size
+    dst: (i32, i32, u32, u32),   // CRTC_X, CRTC_Y, CRTC_W, CRTC_H
+    src: (u32, u32, u32, u32),   // SRC_X/Y/W/H in fb pixels (16.16 >> 16)
+    fb: (u32, u32),              // framebuffer size
 }
+
+/// Every image sent to HyperHDR has this size: HyperHDR never sees a size
+/// change (resolution switch, live TV), and black bars are real black pixels.
+const CANVAS: (u32, u32) = (160, 90);
+
+/// Put the sampled frame where it is on screen, black elsewhere. `img` samples
+/// the whole framebuffer; only the SRC crop is visible, at the DST rectangle.
+fn compose(img: &RgbImage, g: Option<Geometry>) -> RgbImage {
+    let (cw, ch) = CANVAS;
+    let mut out = RgbImage::new(cw, ch);
+    let (iw, ih) = img.dimensions();
+    if iw == 0 || ih == 0 { return out; }
+    let (mut sx, mut sy, mut sw, mut sh) = (0f32, 0f32, iw as f32, ih as f32);
+    let (mut dx, mut dy, mut dw, mut dh) = (0f32, 0f32, cw as f32, ch as f32);
+    if let Some(g) = g {
+        if g.screen.0 > 0 && g.screen.1 > 0 && g.dst.2 > 0 && g.dst.3 > 0 && g.fb.0 > 0 && g.fb.1 > 0 {
+            let (fx, fy) = (iw as f32 / g.fb.0 as f32, ih as f32 / g.fb.1 as f32);
+            if g.src.2 > 0 && g.src.3 > 0 {
+                sx = g.src.0 as f32 * fx; sy = g.src.1 as f32 * fy;
+                sw = g.src.2 as f32 * fx; sh = g.src.3 as f32 * fy;
+            }
+            let (kx, ky) = (cw as f32 / g.screen.0 as f32, ch as f32 / g.screen.1 as f32);
+            dx = g.dst.0 as f32 * kx; dy = g.dst.1 as f32 * ky;
+            dw = g.dst.2 as f32 * kx; dh = g.dst.3 as f32 * ky;
+        }
+    }
+    let x0 = dx.max(0.0).floor() as u32;
+    let y0 = dy.max(0.0).floor() as u32;
+    let x1 = ((dx + dw).min(cw as f32)).ceil() as u32;
+    let y1 = ((dy + dh).min(ch as f32)).ceil() as u32;
+    // only sample rows/columns that lie completely inside the visible crop
+    // (a sample row that is half picture, half padding is left out)
+    let (umin, vmin) = (sx.ceil().max(0.0), sy.ceil().max(0.0));
+    let umax = ((sx + sw).floor().min(iw as f32) - 1.0).max(umin);
+    let vmax = ((sy + sh).floor().min(ih as f32) - 1.0).max(vmin);
+    for y in y0..y1.min(ch) {
+        let v = ((y as f32 + 0.5 - dy) / dh * sh + sy).floor().clamp(vmin, vmax);
+        for x in x0..x1.min(cw) {
+            let u = ((x as f32 + 0.5 - dx) / dw * sw + sx).floor().clamp(umin, umax);
+            out.put_pixel(x, y, *img.get_pixel(u as u32, v as u32));
+        }
+    }
+    out
+}
+
+struct FramebufferFinder {
+    planes: Vec<drm::control::plane::Handle>,
+    /// Plane currently showing the picture we sample (video plane if any).
+    cached: Option<drm::control::plane::Handle>,
+    last_scan: Instant,
+    // stats for --profile: fast-path GETPLANE latency and distinct FB ids
+    lookups: u64,
+    lookup_us_sum: u64,
+    lookup_us_max: u64,
+    distinct: std::collections::HashSet<u32>,
+    geometry: Option<Geometry>,
+    /// a geometry result (also "unknown") has been logged at least once
+    geometry_logged: bool,
+}
+
+/// Video formats Kodi puts on a plane (direct-to-plane rendering).
+const FOURCC_P030: u32 = 808661072;
+const FOURCC_NV12: u32 = 0x3231_564E;
+const FOURCC_YUV420: u32 = 0x3231_5559;
+/// Re-identify the video plane this often (video start/stop, GUI vs video).
+const RESCAN: Duration = Duration::from_secs(2);
 
 impl FramebufferFinder {
     fn new(card: &Card) -> Option<Self> {
-        let resource_handles = card.resource_handles().ok()?;
         let plane_handles = card.plane_handles().ok()?;
         Some(FramebufferFinder {
-            crtcs: resource_handles.crtcs().to_vec(),
             planes: plane_handles.planes().to_vec(),
-            last_good_plane: None,
-            cache_misses: 0,
+            cached: None,
+            last_scan: Instant::now(),
+            lookups: 0,
+            lookup_us_sum: 0,
+            lookup_us_max: 0,
+            distinct: std::collections::HashSet::new(),
+            geometry: None,
+            geometry_logged: false,
         })
     }
 
-    /// Find the currently-scanned-out framebuffer. Prefers the plane that
-    /// worked on the previous call (fast path, one ioctl), then falls back
-    /// to a full scan.
-    fn find(&mut self, card: &Card, verbose: bool) -> Option<Handle> {
-        // Fast path: try the previously-winning plane first.
-        if let Some(plane) = self.last_good_plane {
-            if let Ok(info) = card.get_plane(plane) {
-                if info.crtc().is_some() {
-                    if let Some(fb) = info.framebuffer() {
-                        return Some(fb);
-                    }
-                }
-            }
-            // Fast path missed. After a few consecutive misses, rebuild the
-            // cached plane list in case the topology changed (hotplug, etc.).
-            self.cache_misses = self.cache_misses.saturating_add(1);
-            if self.cache_misses >= 30 {
-                if let Ok(plane_handles) = card.plane_handles() {
-                    self.planes = plane_handles.planes().to_vec();
-                }
-                self.cache_misses = 0;
+    fn plane_id(&self) -> Option<u32> {
+        self.cached.map(u32::from)
+    }
+
+    /// Pixel format of a framebuffer. GETFB2 creates GEM handles in our file;
+    /// close each unique one immediately.
+    fn fb_format(card: &Card, fb: Handle) -> Option<u32> {
+        Self::fb_info(card, fb).map(|i| i.0)
+    }
+
+    /// (pixel format, width, height). GETFB2 creates GEM handles; close them.
+    fn fb_info(card: &Card, fb: Handle) -> Option<(u32, u32, u32)> {
+        let info = ffi::fb_cmd2(card.as_raw_fd(), fb.into()).ok()?;
+        let mut closed: Vec<u32> = Vec::with_capacity(4);
+        for h in info.handles.iter().copied().filter(|h| *h != 0) {
+            if !closed.contains(&h) {
+                let _ = ffi::gem_close(card.as_raw_fd(), h);
+                closed.push(h);
             }
         }
+        Some((info.pixel_format, info.width, info.height))
+    }
 
-        // Slow path: walk CRTCs (often none match during plane-only overlays)
-        // then planes. Update the cache for next time.
-        for crtc in &self.crtcs {
-            let info = match card.get_crtc(*crtc) {
-                Ok(i) => i,
-                Err(e) => {
-                    if verbose {
-                        eprintln!("get_crtc({:?}) failed: {}", crtc, e);
-                    }
-                    continue;
-                }
-            };
-
-            if info.mode().is_some() {
-                if let Some(fb) = info.framebuffer() {
-                    // CRTCs don't have a plane handle; clear plane cache so
-                    // next frame also takes the slow path (CRTC path is rare).
-                    self.last_good_plane = None;
-                    return Some(fb);
+    /// Read the plane's on-screen rectangle and source crop (atomic plane
+    /// properties) plus the CRTC mode size. Only called from scan().
+    fn read_geometry(card: &Card, plane: drm::control::plane::Handle, fb: Handle) -> Option<Geometry> {
+        let pinfo = card.get_plane(plane).ok()?;
+        let crtc = pinfo.crtc()?;
+        let mode = card.get_crtc(crtc).ok()?.mode()?;
+        let (mw, mh) = mode.size();
+        let props = card.get_properties(plane).ok()?;
+        let (ids, vals) = props.as_props_and_values();
+        let mut v = std::collections::HashMap::new();
+        for (id, val) in ids.iter().zip(vals.iter()) {
+            if let Ok(info) = card.get_property(*id) {
+                if let Ok(name) = info.name().to_str() {
+                    v.insert(name.to_string(), *val);
                 }
             }
         }
+        let g = |n: &str| v.get(n).copied();
+        let (_, fw, fh) = Self::fb_info(card, fb)?;
+        Some(Geometry {
+            screen: (mw as u32, mh as u32),
+            dst: (g("CRTC_X")? as i64 as i32, g("CRTC_Y")? as i64 as i32, g("CRTC_W")? as u32, g("CRTC_H")? as u32),
+            src: ((g("SRC_X")? >> 16) as u32, (g("SRC_Y")? >> 16) as u32, (g("SRC_W")? >> 16) as u32, (g("SRC_H")? >> 16) as u32),
+            fb: (fw, fh),
+        })
+    }
 
+    fn geometry(&self) -> Option<Geometry> {
+        self.geometry
+    }
+
+    /// Walk all planes (atomic state via GETPLANE; the legacy CRTC fb can be
+    /// stale), prefer the plane carrying a video format, else the first
+    /// active plane. Runs at most every RESCAN or when the cached plane loses
+    /// its framebuffer.
+    fn scan(&mut self, card: &Card, verbose: bool) -> Option<Handle> {
+        self.last_scan = Instant::now();
+        let mut first = None;
+        let mut video = None;
         for plane in &self.planes {
             let info = match card.get_plane(*plane) {
                 Ok(i) => i,
                 Err(e) => {
-                    if verbose {
-                        eprintln!("get_plane({:?}) failed: {}", plane, e);
-                    }
+                    if verbose { eprintln!("get_plane({:?}) failed: {}", plane, e); }
                     continue;
                 }
             };
+            if info.crtc().is_none() { continue; }
+            if let Some(fb) = info.framebuffer() {
+                if first.is_none() { first = Some((*plane, fb)); }
+                if video.is_none() {
+                    if let Some(f) = Self::fb_format(card, fb) {
+                        if f == FOURCC_P030 || f == FOURCC_NV12 || f == FOURCC_YUV420 {
+                            video = Some((*plane, fb));
+                        }
+                    }
+                }
+            }
+        }
+        let pick = video.or(first);
+        let new_plane = pick.map(|(p, _)| p);
+        let geo = pick.and_then(|(p, fb)| Self::read_geometry(card, p, fb));
+        if geo != self.geometry || !self.geometry_logged {
+            self.geometry_logged = true;
+            match geo {
+                Some(g) => eprintln!("[grabber] picture at {},{} {}x{} on {}x{} screen (visible fb part {},{} {}x{} of {}x{})",
+                                     g.dst.0, g.dst.1, g.dst.2, g.dst.3, g.screen.0, g.screen.1,
+                                     g.src.0, g.src.1, g.src.2, g.src.3, g.fb.0, g.fb.1),
+                None => eprintln!("[grabber] geometry unknown: frame fills the canvas"),
+            }
+            self.geometry = geo;
+        }
+        if new_plane != self.cached {
+            eprintln!("[grabber] sampling plane {:?} ({})", new_plane.map(u32::from),
+                      if video.is_some() { "video" } else { "gui" });
+        }
+        self.cached = new_plane;
+        pick.map(|(_, fb)| fb)
+    }
 
+    /// Framebuffer currently shown on the sampled plane: one GETPLANE on the
+    /// fast path, a scan every RESCAN or on a miss.
+    fn find(&mut self, card: &Card, verbose: bool) -> Option<Handle> {
+        let plane = match self.cached {
+            Some(p) if self.last_scan.elapsed() < RESCAN => p,
+            _ => return self.scan(card, verbose),
+        };
+        let t = Instant::now();
+        let res = card.get_plane(plane);
+        let us = t.elapsed().as_micros() as u64;
+        self.lookups += 1;
+        self.lookup_us_sum += us;
+        if us > self.lookup_us_max { self.lookup_us_max = us; }
+        if let Ok(info) = res {
             if info.crtc().is_some() {
                 if let Some(fb) = info.framebuffer() {
-                    self.last_good_plane = Some(*plane);
-                    self.cache_misses = 0;
+                    self.distinct.insert(fb.into());
                     return Some(fb);
                 }
             }
         }
+        self.scan(card, verbose)
+    }
 
-        None
+    /// (lookups, avg us, max us, distinct fb ids) since the last call.
+    fn take_stats(&mut self) -> (u64, u64, u64, usize) {
+        let r = (self.lookups,
+                 if self.lookups > 0 { self.lookup_us_sum / self.lookups } else { 0 },
+                 self.lookup_us_max, self.distinct.len());
+        self.lookups = 0; self.lookup_us_sum = 0; self.lookup_us_max = 0; self.distinct.clear();
+        r
     }
 }
 
@@ -261,11 +396,34 @@ use std::time::Instant;
 
 /// Target capture rate. 30 FPS is the practical upper bound for Hyperion — it
 /// smooths LEDs internally and higher rates just burn CPU on the Pi.
-const TARGET_FRAME_PERIOD: Duration = Duration::from_millis(33);
+/// A full grab is forced this often even if the plane still shows the same
+/// framebuffer id: ids are reused after RMFB and KMS allows front-buffer
+/// updates, so "same id" is a best-effort hint, never proof of same pixels.
+/// 500 ms also keeps HyperHDR fed (image duration is 1000 ms, see send_image).
+const REGRAB: Duration = Duration::from_millis(500);
+
+/// While nothing new is grabbed, resend the cached small RGB image this often
+/// so HyperHDR keeps the input (it expires 1000 ms after the last image). This
+/// touches no DRM resource at all.
+const HEARTBEAT: Duration = Duration::from_millis(500);
+
+/// A grab slower than this counts as "slow" for backpressure.
+const SLOW_GRAB: Duration = Duration::from_millis(15);
+
+/// Integer CLI option within [min, max], else the default (with a warning).
+fn int_arg(matches: &clap::ArgMatches, name: &str, min: u64, max: u64, default: u64) -> u64 {
+    match matches.value_of(name).and_then(|v| v.parse::<u64>().ok()) {
+        Some(v) if v >= min && v <= max => v,
+        _ => {
+            eprintln!("--{} must be {}-{}, using {}", name, min, max, default);
+            default
+        }
+    }
+}
 
 fn main() {
     let matches = App::new("DRM VC4 Screen Grabber for Hyperion")
-        .version("0.1.3")
+        .version("0.2.0")
         .author("Rudi Horn <dyn-git@rudi-horn.de>")
         .about("Captures a screenshot and sends it to the Hyperion or HyperHDR server.")
         .arg(
@@ -302,6 +460,20 @@ fn main() {
                 .help("Emit periodic per-frame timing stats (for CPU investigation)."),
         )
         .arg(
+            Arg::with_name("poll-ms")
+                .long("poll-ms")
+                .default_value("66")
+                .takes_value(true)
+                .help("How often (2-100 ms) to check which framebuffer is on screen. Cheap: one GETPLANE, no buffer access. Sets the LED latency."),
+        )
+        .arg(
+            Arg::with_name("max-fps")
+                .long("max-fps")
+                .default_value("15")
+                .takes_value(true)
+                .help("Upper bound (1-60) on full grabs per second. A grab only happens when a new framebuffer is shown (or every 500 ms). Conservative default while stability is tested; raise for lower LED lag."),
+        )
+        .arg(
             Arg::with_name("unthrottled")
                 .long("unthrottled")
                 .help("Run the capture loop without the 33ms frame cap. Combine with --profile to see the maximum pipeline throughput; useful for CPU investigation. Do not use in production."),
@@ -313,6 +485,8 @@ fn main() {
     let unthrottled = matches.is_present("unthrottled");
     let screenshot = matches.is_present("screenshot");
     let device_path = matches.value_of("device").unwrap();
+    let poll = Duration::from_millis(int_arg(&matches, "poll-ms", 2, 100, 66));
+    let base_grab = Duration::from_micros(1_000_000 / int_arg(&matches, "max-fps", 1, 60, 15));
     let card = match Card::open(device_path) {
         Ok(c) => c,
         Err(e) => {
@@ -337,6 +511,16 @@ fn main() {
         };
         if let Err(e) = drm_ffi::ioctl::set_cap(card.as_raw_fd(), &set_cap) {
             eprintln!("Warning: could not enable UNIVERSAL_PLANES: {}", e);
+        }
+        // The plane properties CRTC_X/Y/W/H and SRC_* (where the picture is on
+        // screen) are only exposed to clients that announce atomic support.
+        // Reading only: we never commit, Kodi stays the only DRM master.
+        let set_atomic = drm_set_client_cap {
+            capability: drm_ffi::DRM_CLIENT_CAP_ATOMIC as u64,
+            value: 1,
+        };
+        if let Err(e) = drm_ffi::ioctl::set_cap(card.as_raw_fd(), &set_atomic) {
+            eprintln!("Warning: could not enable ATOMIC (plane position unknown, frame fills the canvas): {}", e);
         }
     }
 
@@ -386,8 +570,40 @@ fn main() {
             }
         };
 
+        // (plane, framebuffer) of the last successful grab; None = unknown, grab
+        // at the next poll. Reset after no-frame, errors and reconnects.
+        let mut last_key: Option<(Option<u32>, u32)> = None;
+        let mut last_grab = Instant::now().checked_sub(REGRAB).unwrap_or_else(Instant::now);
+        let mut last_format: &'static str = "";
+        // Backpressure: two slow grabs in a row halve the grab rate for 2 s; repeated
+        // errors drop to 2 grabs/s. Recovers automatically, never "catches up".
+        let mut min_grab = base_grab;
+        let mut slow_streak = 0u32;
+        let mut backoff_until = Instant::now();
+        let mut cached: Option<RgbImage> = None;
+        let mut last_send = Instant::now();
+        let (mut n_polls, mut n_skips, mut n_not_ready) = (0u64, 0u64, 0u64);
+        let mut counters_at = Instant::now();
+
         loop {
             let frame_start = Instant::now();
+            if min_grab != base_grab && Instant::now() >= backoff_until && consecutive_errors.load(Ordering::Relaxed) == 0 {
+                min_grab = base_grab;
+            }
+            if !unthrottled && last_send.elapsed() >= HEARTBEAT {
+                if let Some(img) = &cached {
+                    if send_image(&mut socket, img, verbose).is_ok() {
+                        last_send = Instant::now();
+                    }
+                }
+            }
+            if profile && counters_at.elapsed() >= Duration::from_secs(2) {
+                let (lk, lk_avg, lk_max, nfb) = finder.take_stats();
+                println!("[profile] polls={} skipped={} not_ready={} getplane n={} avg={}us max={}us distinct_fb={} plane={:?}",
+                         n_polls, n_skips, n_not_ready, lk, lk_avg, lk_max, nfb, finder.plane_id());
+                n_polls = 0; n_skips = 0; n_not_ready = 0;
+                counters_at = Instant::now();
+            }
 
             // Every ~1s, drain any replies HyperHDR has sent us so its acks
             // don't slowly fill our TCP receive buffer. Non-blocking, cheap.
@@ -407,6 +623,14 @@ fn main() {
 
             if let Some(fb) = fb_opt {
                 no_fb_count = 0;
+                n_polls += 1;
+                let key = (finder.plane_id(), u32::from(fb));
+                let since = last_grab.elapsed();
+                if !unthrottled && ((last_key == Some(key) && since < REGRAB) || since < min_grab) {
+                    n_skips += 1;
+                    thread::sleep(poll.saturating_sub(frame_start.elapsed()));
+                    continue;
+                }
 
                 // --- stage: decode framebuffer to RGB image
                 let t1 = Instant::now();
@@ -416,7 +640,12 @@ fn main() {
                 match decode_result {
                     Ok(frame) => {
                         let format_label = frame.format_label;
-                        let img = frame.image;
+                        let img = compose(&frame.image, finder.geometry());
+                        if format_label != last_format {
+                            // Log every transition (rare), so tests can see which plane/format was read.
+                            eprintln!("[grabber] plane={:?} fb={} format={} -> {}x{} sample", key.0, key.1, format_label, img.width(), img.height());
+                            last_format = format_label;
+                        }
 
                         // --- stage: encode + send to Hyperion
                         let t2 = Instant::now();
@@ -426,6 +655,19 @@ fn main() {
                         match send_result {
                             Ok(_) => {
                                 consecutive_errors.store(0, Ordering::Relaxed);
+                                last_key = Some(key);
+                                last_grab = Instant::now();
+                                last_send = last_grab;
+                                if Duration::from_micros(decode_us) > SLOW_GRAB {
+                                    slow_streak += 1;
+                                    if slow_streak >= 2 {
+                                        min_grab = base_grab * 2;
+                                        backoff_until = Instant::now() + Duration::from_secs(2);
+                                        if profile { println!("[profile] backoff: slow grabs ({}us)", decode_us); }
+                                    }
+                                } else {
+                                    slow_streak = 0;
+                                }
                                 if profile {
                                     prof.set_format(format_label.to_string());
                                     prof.record(FrameStats {
@@ -437,13 +679,14 @@ fn main() {
                                     });
                                     prof.maybe_flush();
                                 }
-                                let elapsed = frame_start.elapsed();
-                                if !unthrottled && elapsed < TARGET_FRAME_PERIOD {
-                                    thread::sleep(TARGET_FRAME_PERIOD - elapsed);
+                                cached = Some(img);
+                                if !unthrottled {
+                                    thread::sleep(poll.saturating_sub(frame_start.elapsed()));
                                 }
                             }
                             Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {
                                 eprintln!("Hyperion disconnected. Reconnecting...");
+                                last_key = None;
                                 consecutive_errors.store(0, Ordering::Relaxed);
                                 thread::sleep(Duration::from_secs(2));
 
@@ -466,6 +709,7 @@ fn main() {
                                 }
                             }
                             Err(e) => {
+                                last_key = None;
                                 let errors = consecutive_errors.fetch_add(1, Ordering::Relaxed) + 1;
                                 if verbose {
                                     eprintln!("Send error #{}: {}", errors, e);
@@ -479,7 +723,15 @@ fn main() {
                             }
                         }
                     }
+                    Err(drm::SystemError::Unknown { errno }) if errno == dump_image::NOT_READY => {
+                        // Producer still writing: drop this LED frame, never wait on Kodi.
+                        n_not_ready += 1;
+                        thread::sleep(poll.saturating_sub(frame_start.elapsed()));
+                    }
                     Err(e) => {
+                        last_key = None;
+                        min_grab = Duration::from_millis(500);
+                        backoff_until = Instant::now() + Duration::from_secs(2);
                         // Decode failed (e.g. transient unknown format during
                         // HDR metadata switch). Count it and back off, but
                         // don't bail out — the next frame may succeed.
@@ -496,6 +748,7 @@ fn main() {
                     }
                 }
             } else {
+                last_key = None;
                 no_fb_count += 1;
 
                 if verbose {
@@ -508,5 +761,58 @@ fn main() {
                 thread::sleep(Duration::from_secs(1));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod canvas_tests {
+    use super::*;
+    use image::Rgb;
+    fn solid(w: u32, h: u32, c: [u8; 3]) -> RgbImage { RgbImage::from_pixel(w, h, Rgb(c)) }
+    fn geo(screen: (u32, u32), dst: (i32, i32, u32, u32), src: (u32, u32, u32, u32), fb: (u32, u32)) -> Option<Geometry> {
+        Some(Geometry { screen, dst, src, fb })
+    }
+    #[test]
+    fn full_screen_fills_canvas() {
+        let out = compose(&solid(120, 67, [200, 10, 10]), geo((3840, 2160), (0, 0, 3840, 2160), (0, 0, 1920, 1080), (1920, 1080)));
+        assert_eq!(out.dimensions(), CANVAS);
+        assert!(out.pixels().all(|p| p.0 == [200, 10, 10]));
+    }
+    #[test]
+    fn portrait_clip_has_black_sides() {
+        // 1080x1920 portrait clip shown centred on a 3840x2160 screen: 1215 px wide
+        let out = compose(&solid(68, 120, [0, 200, 0]), geo((3840, 2160), (1312, 0, 1215, 2160), (0, 0, 1080, 1920), (1080, 1920)));
+        assert_eq!(out.get_pixel(5, 45).0, [0, 0, 0], "left bar black");
+        assert_eq!(out.get_pixel(154, 45).0, [0, 0, 0], "right bar black");
+        assert_eq!(out.get_pixel(80, 45).0, [0, 200, 0], "picture in the middle");
+        assert_eq!(out.get_pixel(80, 0).0, [0, 200, 0], "full height");
+    }
+    #[test]
+    fn letterbox_film_has_black_top_and_bottom() {
+        // 2.39:1 picture letterboxed on 16:9: 3840x1606 at y=277
+        let out = compose(&solid(160, 67, [9, 9, 250]), geo((3840, 2160), (0, 277, 3840, 1606), (0, 0, 1920, 803), (1920, 803)));
+        assert_eq!(out.get_pixel(80, 2).0, [0, 0, 0]);
+        assert_eq!(out.get_pixel(80, 87).0, [0, 0, 0]);
+        assert_eq!(out.get_pixel(80, 45).0, [9, 9, 250]);
+    }
+    #[test]
+    fn padding_rows_of_1088_buffer_are_cropped() {
+        // fb 1920x1088, only 1080 visible: bottom 8 rows (red) must not reach the canvas
+        let mut img = solid(120, 68, [50, 50, 50]);
+        for x in 0..120 { img.put_pixel(x, 67, Rgb([255, 0, 0])); }
+        let out = compose(&img, geo((3840, 2160), (0, 0, 3840, 2160), (0, 0, 1920, 1080), (1920, 1088)));
+        assert!(out.pixels().all(|p| p.0 != [255, 0, 0]), "padding row leaked into the picture");
+    }
+    #[test]
+    fn unknown_geometry_still_fixed_size() {
+        let out = compose(&solid(53, 30, [1, 2, 3]), None);
+        assert_eq!(out.dimensions(), CANVAS);
+        assert!(out.pixels().all(|p| p.0 == [1, 2, 3]));
+    }
+    #[test]
+    fn offscreen_or_zero_rect_does_not_panic() {
+        let _ = compose(&solid(10, 10, [1, 1, 1]), geo((3840, 2160), (-500, -500, 100, 100), (0, 0, 10, 10), (10, 10)));
+        let _ = compose(&solid(10, 10, [1, 1, 1]), geo((3840, 2160), (0, 0, 0, 0), (0, 0, 0, 0), (0, 0)));
+        let _ = compose(&solid(0, 0, [1, 1, 1]), None);
     }
 }

@@ -59,12 +59,28 @@ struct MappedBuffer {
     addr: *mut libc::c_void,
     len: usize,
     fd: libc::c_int,
+    /// SYNC_START succeeded, so Drop must issue the matching SYNC_END.
+    synced: bool,
 }
+
+/// How long we wait for the producer (decoder / renderer) to finish writing a
+/// buffer before giving up on this LED frame. Never block Kodi's buffers: if it
+/// is not ready, the capture loop skips it and retries on the next poll.
+const READY_TIMEOUT_MS: libc::c_int = 2;
+
+/// errno used to tell the capture loop "buffer not ready, skip quietly".
+pub const NOT_READY: nix::errno::Errno = nix::errno::Errno::EAGAIN;
 
 impl MappedBuffer {
     /// Map a DRM buffer object for read. `len` is in bytes.
     unsafe fn new(card: &Card, handle: u32, len: usize) -> Result<Self, SystemError> {
         let fd = ffi::prime_handle_to_fd(card.as_raw_fd(), handle)?;
+        // Readable = no pending write fence on the buffer. Bounded wait only.
+        let mut pfd = libc::pollfd { fd, events: libc::POLLIN, revents: 0 };
+        if libc::poll(&mut pfd, 1, READY_TIMEOUT_MS) <= 0 {
+            libc::close(fd);
+            return Err(SystemError::Unknown { errno: NOT_READY });
+        }
         let addr = match mman::mmap(
             core::ptr::null_mut(),
             len as _,
@@ -91,7 +107,12 @@ impl MappedBuffer {
         };
         // Hint the kernel about our access pattern.
         libc::madvise(addr, len as _, libc::MADV_SEQUENTIAL);
-        Ok(MappedBuffer { addr, len, fd })
+        if let Err(errno) = ffi::dmabuf_sync(fd, ffi::DMA_BUF_SYNC_START | ffi::DMA_BUF_SYNC_READ) {
+            let _ = mman::munmap(addr, len as _);
+            libc::close(fd);
+            return Err(SystemError::Unknown { errno });
+        }
+        Ok(MappedBuffer { addr, len, fd, synced: true })
     }
 
     /// Return the mapping as a read-only typed slice of `count` elements.
@@ -109,6 +130,11 @@ impl MappedBuffer {
 impl Drop for MappedBuffer {
     fn drop(&mut self) {
         unsafe {
+            if self.synced {
+                if let Err(e) = ffi::dmabuf_sync(self.fd, ffi::DMA_BUF_SYNC_END | ffi::DMA_BUF_SYNC_READ) {
+                    eprintln!("Warning: DMA_BUF_SYNC_END failed on fd {}: {}", self.fd, e);
+                }
+            }
             let _ = mman::munmap(self.addr, self.len as _);
             if close(self.fd) == -1 {
                 eprintln!(

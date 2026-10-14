@@ -61,7 +61,11 @@ service down.
 |------|---------|-------------|
 | `-d`, `--device` | `/dev/dri/card1` | DRM card node. Use `card0` for Pi 4 and earlier. |
 | `-a`, `--address` | `127.0.0.1:19400` | Hyperion / HyperHDR TCP endpoint. |
-| `--screenshot` | off | Capture a single frame to `screenshot.png` and exit. |
+| `--poll-ms` | `66` | How often to look up which framebuffer the video plane shows (one `GETPLANE`). |
+| `--max-fps` | `15` | Upper bound on real captures per second. |
+| `--screenshot` | off | Capture a single frame to `screenshot.png` and exit (also prints the plane and on-screen geometry it found). |
+| `--profile` | off | Print timing, poll/skip and plane-lookup statistics every 2 s. |
+| `--unthrottled` | off | No frame pacing (profiling only, not for production). |
 | `-v`, `--verbose` | off | Log DRM, framebuffer, and send details. |
 
 ## Building from source
@@ -87,21 +91,41 @@ Native builds on x86_64 (for compile-checks only, not runnable) work with
 
 ## How it works
 
-At startup the grabber opens the DRM device, enables the `UNIVERSAL_PLANES`
-capability, then enters a capture loop:
+At startup the grabber opens the DRM device and enables the `UNIVERSAL_PLANES`
+and `ATOMIC` client capabilities. `ATOMIC` is only used to *read* the plane
+properties `CRTC_X/Y/W/H` and `SRC_X/Y/W/H` (where the picture is on screen);
+the grabber never commits anything, Kodi stays the only DRM master.
 
-1. Walk the CRTCs and planes to find the currently-scanned-out framebuffer.
-2. Call `DRM_IOCTL_MODE_GETFB2` to pull the framebuffer metadata (size, FourCC,
-   modifier, GEM handles, pitches, offsets).
-3. Convert the GEM handles to PRIME file descriptors, `mmap` them read-only.
-4. Decode the pixel data into an 8-bit RGB image, decimating 4x or 8x to keep
-   the image small (Hyperion averages across LED regions anyway).
-5. Flatbuffer-encode the image and send it over TCP to Hyperion.
-6. Close the PRIME FDs and GEM handles, then sleep the remainder of the
-   ~33 ms frame budget.
+1. **Find the picture.** Every 2 s all planes are scanned (atomic state via
+   `GETPLANE`; the legacy CRTC framebuffer can be stale). The plane carrying a
+   video format (`P030`, `NV12`, `YUV420`) is preferred, otherwise the GUI plane.
+   Its on-screen rectangle, source crop and the CRTC mode size are read then.
+2. **Cheap lookups.** Between scans, one `GETPLANE` per tick (`--poll-ms`) gives
+   the framebuffer currently shown. A real capture only happens when it changed
+   (or every 500 ms), at most `--max-fps` per second. On a Pi 5 each DRM query
+   waits behind Kodi's atomic commit (measured ~17 ms), so fewer queries means
+   less contention with video output.
+3. **Capture.** `GETFB2`, PRIME export (`O_CLOEXEC`), `poll` for readiness (2 ms
+   budget, otherwise the LED frame is dropped), `DMA_BUF_IOCTL_SYNC` START,
+   `mmap`, sparse sampling, SYNC END, `munmap`, close everything. No DRM
+   resource is kept between captures.
+4. **Place it on screen.** The sample is drawn at its real position on a fixed
+   160x90 canvas; everything else is black. Portrait videos, pillar- and
+   letterboxing therefore give real black bars, and padding rows (e.g. a
+   1920x1088 decoder buffer showing 1080 lines) are cropped.
+5. **Send.** Flatbuffer image to Hyperion/HyperHDR. While nothing changes, the
+   cached image is re-sent every 500 ms without touching DRM. Slow or failing
+   captures back off automatically.
 
-Linear RGB formats are sampled directly from the mmap without an intermediate
-copy. Broadcom SAND128-tiled formats (NV12, P030) are copied once and decoded.
+The output image is always 160x90, so the server never sees a size change when
+the source resolution changes (live TV, resolution switches).
+
+### Black bars and the server's black-border detection
+
+Because the bars are now real black pixels, HyperHDR/Hyperion's *blackbar
+detection* would crop them away again and stretch the picture over all LEDs.
+If you want the LEDs next to the bars to stay dark (portrait clips, 21:9
+films), switch black-border detection off in the server.
 
 ## Compatibility with ambient-light servers
 
